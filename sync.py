@@ -30,17 +30,28 @@ def get_trakt_history(limit=50):
         return []
 
 def get_poster_url(entry):
-    """Fetch poster URL from Trakt TMDB ID"""
+    """Fetch poster URL from Trakt (more robust)"""
     try:
-        if "movie" in entry:
-            tmdb_id = entry["movie"].get("ids", {}).get("tmdb")
-        elif "show" in entry:
-            tmdb_id = entry["show"].get("ids", {}).get("tmdb")
-        else:
-            return None
+        # Try movie first
+        if "movie" in entry and entry["movie"]:
+            ids = entry["movie"].get("ids", {})
+            tmdb_id = ids.get("tmdb") or ids.get("imdb")
+            if tmdb_id:
+                return f"https://image.tmdb.org/t/p/w780/{tmdb_id}"
         
-        if tmdb_id:
-            return f"https://image.tmdb.org/t/p/w780/{tmdb_id}"
+        # Try show/episode
+        elif "show" in entry and entry["show"]:
+            ids = entry["show"].get("ids", {})
+            tmdb_id = ids.get("tmdb") or ids.get("imdb")
+            if tmdb_id:
+                return f"https://image.tmdb.org/t/p/w780/{tmdb_id}"
+        
+        # Fallback: use Trakt image directly
+        if "movie" in entry and entry["movie"].get("image"):
+            return entry["movie"]["image"]
+        if "show" in entry and entry["show"].get("image"):
+            return entry["show"]["image"]
+            
         return None
     except:
         return None
