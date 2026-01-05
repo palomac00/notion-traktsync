@@ -118,6 +118,15 @@ def add_to_notion(item_data):
         print(f"Response: {e.response.text if hasattr(e, 'response') else 'No response'}")
         return False
 
+def validate_notion():
+    headers = {"Authorization": f"Bearer {NOTION_API_KEY}", "Notion-Version": "2022-06-28"}
+    try:
+        resp = requests.get(f"https://api.notion.com/v1/databases/{NOTION_DATABASE_ID}", headers=headers)
+        resp.raise_for_status()
+        print("✓ Database accessible:", resp.json().get("title", []))
+    except Exception as e:
+        print("✗ Validation failed:", e)
+
 # ===== MAIN SYNC FUNCTION =====
 def sync_trakt_to_notion():
     """Main function to sync Trakt history to Notion"""
