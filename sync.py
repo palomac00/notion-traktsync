@@ -29,6 +29,22 @@ def get_trakt_history(limit=50):
         print(f"Error fetching Trakt history: {e}")
         return []
 
+def get_poster_url(entry):
+    """Fetch poster URL from Trakt TMDB ID"""
+    try:
+        if "movie" in entry:
+            tmdb_id = entry["movie"].get("ids", {}).get("tmdb")
+        elif "show" in entry:
+            tmdb_id = entry["show"].get("ids", {}).get("tmdb")
+        else:
+            return None
+        
+        if tmdb_id:
+            return f"https://image.tmdb.org/t/p/w780/{tmdb_id}"
+        return None
+    except:
+        return None
+
 # ===== NOTION API =====
 def check_if_exists_in_notion(title):
     """Check if item already exists in Notion database"""
@@ -59,13 +75,21 @@ def check_if_exists_in_notion(title):
         print(f"Error checking Notion: {e}")
         return False
 
-def add_to_notion(item_data):
-    """Add item to Notion database"""
+def add_to_notion(item_data, poster_url=None):
+    """Add item to Notion database with poster"""
     headers = {
         "Authorization": f"Bearer {NOTION_API_KEY}",
         "Content-Type": "application/json",
         "Notion-Version": "2022-06-28"
     }
+    
+    # Build Poster property
+    poster_prop = {"files": []}
+    if poster_url:
+        poster_prop["files"] = [{
+            "name": f"{item_data['title']}.jpg",
+            "external": {"url": poster_url}
+        }]
     
     page_data = {
         "parent": {
@@ -97,10 +121,11 @@ def add_to_notion(item_data):
                 }
             },
             "Status": {
-                "status": {  # CHANGED: "status" instead of "select"
+                "status": {
                     "name": "Watching"
                 }
-            }
+            },
+            "Poster": poster_prop
         }
     }
     
@@ -117,16 +142,6 @@ def add_to_notion(item_data):
         print(f"✗ Error adding to Notion: {e}")
         print(f"Response: {e.response.text if hasattr(e, 'response') else 'No response'}")
         return False
-
-
-def validate_notion():
-    headers = {"Authorization": f"Bearer {NOTION_API_KEY}", "Notion-Version": "2022-06-28"}
-    try:
-        resp = requests.get(f"https://api.notion.com/v1/databases/{NOTION_DATABASE_ID}", headers=headers)
-        resp.raise_for_status()
-        print("✓ Database accessible:", resp.json().get("title", []))
-    except Exception as e:
-        print("✗ Validation failed:", e)
 
 # ===== MAIN SYNC FUNCTION =====
 def sync_trakt_to_notion():
@@ -165,11 +180,11 @@ def sync_trakt_to_notion():
                 continue
             
             watched_at = entry.get("watched_at", datetime.now().isoformat()).split("T")[0]
-            rating = item.get("rating", "Unrated")
+            rating = item.get("rating")
             
-            # Convertir rating a formato de estrella si es numérico
-            if isinstance(rating, (int, float)):
-                rating_str = "★ " * int(rating) if rating > 0 else "Unrated"
+            # Convert rating to star format if numeric
+            if isinstance(rating, (int, float)) and rating > 0:
+                rating_str = "★ " * int(rating)
             else:
                 rating_str = "Unrated"
             
@@ -180,10 +195,11 @@ def sync_trakt_to_notion():
                 "rating": rating_str
             }
             
-            if add_to_notion(item_data):
+            poster_url = get_poster_url(entry)
+            if add_to_notion(item_data, poster_url):
                 added_count += 1
             
-            time.sleep(0.3)
+            time.sleep(0.3)  # Rate limiting
         except Exception as e:
             print(f"Error processing entry: {e}")
             continue
