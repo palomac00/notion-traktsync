@@ -30,6 +30,7 @@ def get_trakt_history(limit=50):
         return []
 
 def get_poster_url(entry):
+    print(f"Title: {title}, Poster: {poster_url}")
     """Fetch poster URL from Trakt (more robust)"""
     try:
         # Try movie first
