@@ -97,7 +97,7 @@ def add_to_notion(item_data):
                 }
             },
             "Status": {
-                "select": {
+                "status": {  # CHANGED: "status" instead of "select"
                     "name": "Watching"
                 }
             }
@@ -117,6 +117,7 @@ def add_to_notion(item_data):
         print(f"✗ Error adding to Notion: {e}")
         print(f"Response: {e.response.text if hasattr(e, 'response') else 'No response'}")
         return False
+
 
 def validate_notion():
     headers = {"Authorization": f"Bearer {NOTION_API_KEY}", "Notion-Version": "2022-06-28"}
