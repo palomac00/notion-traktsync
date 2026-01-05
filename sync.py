@@ -86,21 +86,23 @@ def add_to_notion(item_data):
                     "name": item_data["type"]
                 }
             },
-            "Watched": {
+            "Date Watched": {
                 "date": {
                     "start": item_data["watched_at"]
                 }
             },
             "Rating": {
-                "number": item_data.get("rating", 0)
+                "select": {
+                    "name": item_data.get("rating", "Unrated")
+                }
+            },
+            "Status": {
+                "select": {
+                    "name": "Watching"
+                }
             }
         }
     }
-    
-    if item_data.get("trakt_slug"):
-        page_data["properties"]["URL"] = {
-            "url": f"https://trakt.tv/{item_data['item_type'].lower()}s/{item_data['trakt_slug']}"
-        }
     
     try:
         response = requests.post(
@@ -113,6 +115,7 @@ def add_to_notion(item_data):
         return True
     except requests.exceptions.RequestException as e:
         print(f"✗ Error adding to Notion: {e}")
+        print(f"Response: {e.response.text if hasattr(e, 'response') else 'No response'}")
         return False
 
 # ===== MAIN SYNC FUNCTION =====
@@ -139,12 +142,10 @@ def sync_trakt_to_notion():
                 item = entry["movie"]
                 item_type = "Movie"
                 title = item["title"]
-                trakt_slug = item["ids"]["slug"]
             elif "show" in entry:
                 item = entry["show"]
-                item_type = "Show"
+                item_type = "TV Show"
                 title = item["title"]
-                trakt_slug = item["ids"]["slug"]
             else:
                 continue
             
@@ -154,15 +155,19 @@ def sync_trakt_to_notion():
                 continue
             
             watched_at = entry.get("watched_at", datetime.now().isoformat()).split("T")[0]
-            rating = item.get("rating", 0)
+            rating = item.get("rating", "Unrated")
+            
+            # Convertir rating a formato de estrella si es numérico
+            if isinstance(rating, (int, float)):
+                rating_str = "★ " * int(rating) if rating > 0 else "Unrated"
+            else:
+                rating_str = "Unrated"
             
             item_data = {
                 "title": title,
                 "type": item_type,
-                "item_type": item_type,
                 "watched_at": watched_at,
-                "rating": rating,
-                "trakt_slug": trakt_slug
+                "rating": rating_str
             }
             
             if add_to_notion(item_data):
